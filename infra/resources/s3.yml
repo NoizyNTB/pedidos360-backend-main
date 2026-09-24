@@ -1,0 +1,23 @@
+Resources:
+  ProductImagesBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.imagesBucket}
+      # Bucket privado: las imágenes se leen con URLs prefirmadas, no públicas.
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      # CORS necesario para que el navegador (localhost:5173) pueda hacer PUT directo a S3.
+      CorsConfiguration:
+        CorsRules:
+          - AllowedOrigins:
+              - http://localhost:5173
+            AllowedMethods:
+              - PUT
+              - GET
+              - HEAD
+            AllowedHeaders:
+              - '*'
+            MaxAge: 3000

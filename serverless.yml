@@ -30,6 +30,7 @@ provider:
     STAGE: ${self:provider.stage}
     ORDERS_TABLE: ${self:custom.ordersTable}
     CATALOG_TABLE: ${self:custom.catalogTable}
+    IMAGES_BUCKET: ${self:custom.imagesBucket}
 
   httpApi:
     cors:
@@ -56,6 +57,9 @@ provider:
 custom:
   ordersTable: pedidos360-orders-${self:provider.stage}
   catalogTable: pedidos360-catalog-${self:provider.stage}
+  # Bucket S3 para imágenes de productos (el nombre debe ser único en todo AWS,
+  # por eso incluye el ID de cuenta).
+  imagesBucket: pedidos360-images-${env:AWS_ACCOUNT_ID}-${self:provider.stage}
   # serverless-dotenv-plugin por defecto inyecta TODAS las variables del
   # .env como environment vars de cada Lambda. Acá lo evitamos para las
   # variables de AWS, porque AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
@@ -174,6 +178,16 @@ functions:
           authorizer:
             name: azureAdAuthorizer
 
+  # Pide una URL prefirmada de S3 para subir la imagen de un producto.
+  createImageUploadUrl:
+    handler: src/functions/catalog/createImageUploadUrl/handler.handler
+    events:
+      - httpApi:
+          method: POST
+          path: /api/catalog/images/upload-url
+          authorizer:
+            name: azureAdAuthorizer
+
   # ==================================================================
   # ms-pedidos360-notify / audit / report
   # NO se despliegan en esta primera instancia: dependen de RabbitMQ
@@ -184,3 +198,4 @@ functions:
 
 resources:
   - ${file(infra/resources/dynamodb.yml)}
+  - ${file(infra/resources/s3.yml)}
