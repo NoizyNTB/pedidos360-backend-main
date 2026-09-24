@@ -5,6 +5,7 @@ const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { updateProductSchema } = require('../../../models/product.model');
 const { requireRoles } = require('../../../libs/middlewares/requireRoles');
 const PERMISSIONS = require('../../../libs/constants/permissions');
+const { withImageUrl } = require('../../../libs/utils/imageUrl');
 
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
@@ -39,7 +40,7 @@ const handler = async (event) => {
         ReturnValues: 'ALL_NEW',
       })
     );
-    return success(result.Attributes);
+    return success(await withImageUrl(result.Attributes));
   } catch (err) {
     if (err.name === 'ConditionalCheckFailedException') {
       return error('Producto no encontrado', 404);

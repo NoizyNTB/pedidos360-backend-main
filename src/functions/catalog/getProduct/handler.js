@@ -4,6 +4,7 @@ const { success, error } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { requireRoles } = require('../../../libs/middlewares/requireRoles');
 const PERMISSIONS = require('../../../libs/constants/permissions');
+const { withImageUrl } = require('../../../libs/utils/imageUrl');
 
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
@@ -15,7 +16,7 @@ const handler = async (event) => {
   );
 
   if (!result.Item) return error('Producto no encontrado', 404);
-  return success(result.Item);
+  return success(await withImageUrl(result.Item));
 };
 
 module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.catalog.read)(handler)),};

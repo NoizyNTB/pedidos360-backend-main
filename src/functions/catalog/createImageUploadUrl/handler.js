@@ -1,45 +1,24 @@
-import { randomUUID } from 'node:crypto';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+const { v4: uuidv4 } = require('uuid');
+const { PutCommand } = require('@aws-sdk/lib-dynamodb');
+const { dynamoDb } = require('../../../libs/db/dynamoClient');
+const { success } = require('../../../libs/utils/response');
+const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
+const { createProductSchema } = require('../../../models/product.model');
+const { requireRoles } = require('../../../libs/middlewares/requireRoles');
+const PERMISSIONS = require('../../../libs/constants/permissions');
+const { withImageUrl } = require('../../../libs/utils/imageUrl');
 
-// POST /api/catalog/images/upload-url
-// Body:     { contentType: 'image/png', fileName?: 'foto.png' }
-// Respuesta: { uploadUrl, key, expiresIn }
-// El navegador sube el archivo directo a S3 con `uploadUrl` (PUT) y luego guarda `key` en el producto.
+const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
-const s3 = new S3Client({});
+const handler = async (event) => {
+  const body = JSON.parse(event.body || '{}');
+  const data = createProductSchema.parse(body);
 
-const EXTENSIONS = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
-const EXPIRES_IN = 300; // segundos que dura la URL prefirmada
+  const now = new Date().toISOString();
+  const item = { id: uuidv4(), ...data, createdAt: now, updatedAt: now };
 
-const json = (statusCode, body) => ({
-  statusCode,
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(body),
-});
-
-export const handler = async (event) => {
-  let body;
-  try {
-    body = JSON.parse(event.body ?? '{}');
-  } catch {
-    return json(400, { message: 'El cuerpo de la petición no es un JSON válido.' });
-  }
-
-  const extension = EXTENSIONS[body.contentType];
-  if (!extension) {
-    return json(400, { message: 'Formato no permitido. Usa JPG, PNG o WebP.' });
-  }
-
-  // La key la genera el servidor (nunca el cliente) para evitar sobrescrituras o rutas raras.
-  const key = `products/${randomUUID()}.${extension}`;
-
-  const command = new PutObjectCommand({
-    Bucket: process.env.IMAGES_BUCKET,
-    Key: key,
-    ContentType: body.contentType, // queda firmado: el PUT debe enviar exactamente este Content-Type
-  });
-
-  const uploadUrl = await getSignedUrl(s3, command, { expiresIn: EXPIRES_IN });
-  return json(200, { uploadUrl, key, expiresIn: EXPIRES_IN });
+  await dynamoDb.send(new PutCommand({ TableName: CATALOG_TABLE, Item: item }));
+  return success(await withImageUrl(item), 201);
 };
+
+module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.catalog.create)(handler)),};

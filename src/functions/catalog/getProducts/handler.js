@@ -4,6 +4,7 @@ const { success } = require('../../../libs/utils/response');
 const { withErrorHandler } = require('../../../libs/middlewares/errorHandler');
 const { requireRoles } = require('../../../libs/middlewares/requireRoles');
 const PERMISSIONS = require('../../../libs/constants/permissions');
+const { withImageUrls } = require('../../../libs/utils/imageUrl');
 
 const CATALOG_TABLE = process.env.CATALOG_TABLE;
 
@@ -18,7 +19,7 @@ const handler = async (event) => {
   }
 
   const result = await dynamoDb.send(new ScanCommand(params));
-  return success(result.Items || []);
+  return success(await withImageUrls(result.Items || []));
 };
 
 module.exports = {handler: withErrorHandler(requireRoles(...PERMISSIONS.catalog.read)(handler)),};
